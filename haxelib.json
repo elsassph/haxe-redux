@@ -1,0 +1,11 @@
+{
+	"name": "redux",
+	"license": "MIT",
+	"tags": ["js", "redux", "react"],
+	"description": "Redux externs and support classses for a smarter API",
+	"contributors": ["elsassph"],
+	"releasenote": "See https://github.com/elsassph/haxe-redux",
+	"version": "0.1.0",
+	"url": "https://github.com/elsassph/haxe-redux",
+	"dependencies": {}
+}
