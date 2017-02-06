@@ -58,6 +58,8 @@ class ConnectMacro
 	
 	static function addDispatch(fields:Array<Field>) 
 	{
+		if (hasField(Context.getLocalClass().get(), 'dispatch')) return;
+		
 		fields.push({
 			name: 'dispatch',
 			access: [APublic],
@@ -70,6 +72,17 @@ class ConnectMacro
 			}),
 			pos: Context.currentPos()
 		});
+	}
+	
+	static function hasField(t:ClassType, name:String) 
+	{
+		if (t.superClass == null || t.superClass.t == null) return false;
+		
+		var sc = t.superClass.t.get();
+		for (field in sc.fields.get())
+			if (field.name == name) return true;
+		
+		return hasField(sc, name);
 	}
 	
 	/* MAP STATE */
@@ -168,7 +181,7 @@ class ConnectMacro
 				args:[],
 				ret: macro :Void,
 				expr: macro {
-					var state = mapState(context.store.getState());
+					var state = mapState(context.store.getState(), props);
 					if (__state == null || !react.ReactUtil.shallowCompare(__state, state))
 					{
 						__state = state;
@@ -212,7 +225,7 @@ class ConnectMacro
 						if (f.args.length < 2) f.args.push({ name:'context', type: macro: Dynamic });
 						f.expr = macro {
 							${f.expr}
-							state = __state = mapState(context.store.getState());
+							state = __state = mapState(context.store.getState(), props);
 						};
 					default:
 				}
