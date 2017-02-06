@@ -8,5 +8,6 @@ import redux.StoreMethods;
 **/
 interface IMiddleware<TAction, TAppState>
 {
-	function middleware(store:StoreMethods<TAppState>, action:TAction, next:Void -> Dynamic):Dynamic;
+	var store:StoreMethods<TAppState>;
+	function middleware(action:TAction, next:Void -> Dynamic):Dynamic;
 }

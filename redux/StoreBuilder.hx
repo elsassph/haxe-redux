@@ -30,12 +30,13 @@ class StoreBuilder
 	{
 		var type = of.getName();
 		return function (store:StoreMethods<TAppState>) {
+			service.store = store;
 			return function (next:Dispatch):Dynamic {
 				return function (action:Action):Dynamic {
 					if (action.type == type)
 					{
 						var skip = function() return next(action);
-						return service.middleware(store, action.value, skip);
+						return service.middleware(action.value, skip);
 					}
 					return next(action);
 				}
