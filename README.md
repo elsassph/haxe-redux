@@ -142,6 +142,9 @@ but you should be able to manually reproduce this setup if desired.
 Unlike the HOC, this approach applies the mapped redux state as **state** values (only
 when it changes).
 
+**Note: it is strongly discouraged to use inheritance with classes implementing 
+`IConnectedComponent`. Use React components composition instead!**
+
 ```haxe
 // Implement IConnectComponent and (optionally) simply declare your state mapping function.
 // No need to wrap your React view with Redux's connect function!
