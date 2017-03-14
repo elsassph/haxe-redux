@@ -65,9 +65,9 @@ class ConnectMacro
 			access: [APublic],
 			kind: FFun({
 				args:[{ name:'action', type: macro: redux.Redux.Action }],
-				ret: macro :Void,
+				ret: macro :Dynamic,
 				expr: macro {
-					context.store.dispatch(action);
+					return context.store.dispatch(action);
 				}
 			}),
 			pos: Context.currentPos()
