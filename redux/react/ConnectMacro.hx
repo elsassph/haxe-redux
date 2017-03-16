@@ -212,20 +212,24 @@ class ConnectMacro
 			pos: Context.currentPos()
 		});
 	}
-	
+
 	static function updateCtor(fields:Array<Field>) 
 	{
+		var propsArg = { name: 'props', type: macro :Dynamic };
+		var contextArg = { name: 'context', type: macro :Dynamic };
+		var updateStateExpr = macro state = __state = mapState(context.store.getState(), props);
+
 		for (field in fields)
 			if (field.name == 'new')
 			{
 				switch (field.kind)
 				{
 					case FFun(f):
-						if (f.args.length < 1) f.args.push({ name:'props', type: macro: Dynamic });
-						if (f.args.length < 2) f.args.push({ name:'context', type: macro: Dynamic });
+						if (f.args.length < 1) f.args.push(propsArg);
+						if (f.args.length < 2) f.args.push(contextArg);
 						f.expr = macro {
 							${f.expr}
-							state = __state = mapState(context.store.getState(), props);
+							$updateStateExpr;
 						};
 					default:
 				}
@@ -239,15 +243,12 @@ class ConnectMacro
 			meta: [],
 			access: [APublic],
 			kind: FFun({
-				args: [
-					{ name:'props', type: macro: Dynamic },
-					{ name:'context', type: macro: Dynamic }
-				],
+				args: [propsArg, contextArg],
 				params: [],
 				ret: null,
 				expr: macro {
 					super(props);
-					state = __state = mapState(context.store.getState(), props);
+					$updateStateExpr;
 				}
 			}),
 			pos: Context.currentPos()
