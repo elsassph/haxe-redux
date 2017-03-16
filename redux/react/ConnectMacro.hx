@@ -231,6 +231,27 @@ class ConnectMacro
 				}
 				return;
 			}
+
+		// If no constructor found
+		fields.push({
+			name: "new",
+			doc: null,
+			meta: [],
+			access: [APublic],
+			kind: FFun({
+				args: [
+					{ name:'props', type: macro: Dynamic },
+					{ name:'context', type: macro: Dynamic }
+				],
+				params: [],
+				ret: null,
+				expr: macro {
+					super(props);
+					state = __state = mapState(context.store.getState(), props);
+				}
+			}),
+			pos: Context.currentPos()
+		});
 	}
 }
 #end
