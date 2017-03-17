@@ -184,3 +184,38 @@ class TodoListView extends ReactComponentOfState<TodoListState> implements IConn
 	}
 	...
 ```
+
+### Common issues
+
+#### Uncaught Error: Actions must be plain objects. Use custom middleware for async actions.
+
+Happens when you dispatch an Enum but the `dispatch` function is dynamically typed.
+
+The reason is the Enum needs to be transformed using an abstract type `redux.Action`.
+This abstract type will wrap the Enum value in a regular Redux action. 
+
+**Solution:**
+
+Make sure `dispatch` is a function declared as `redux.Action->Dynamic` 
+or simply `redux.Dispatch`.
+
+For example if you pass a reference to `dispatch` down to sub-components, you'll need
+to type the props or use a temp variable:
+
+```haxe
+// when reference is untyped
+var dispatch:Dispatch = props.dispatch;
+dispatch(AnEnum.Action);
+
+// or use typed props
+typedef MyCompProps = {
+	dispatch:Dispatch
+}
+
+class MyComp extends ReactComponentOfProps<MyCompProps> {
+	...
+	function doSomething() {
+		props.dispatch(AnEnum.Action);
+	}
+}
+```
