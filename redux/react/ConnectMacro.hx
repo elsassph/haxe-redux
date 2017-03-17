@@ -10,15 +10,15 @@ import haxe.macro.Type.ClassType;
 **/
 class ConnectMacro
 {
-	static public function build() 
+	static public function build()
 	{
 		var fields = Context.getBuildFields();
-		
+
 		// wire 'store' in context
 		addContextTypes(fields);
-		// add 'dispatch' method 
+		// add 'dispatch' method
 		addDispatch(fields);
-		
+
 		// if class has 'mapState' method
 		if (hasMapState(fields))
 		{
@@ -33,17 +33,17 @@ class ConnectMacro
 		}
 		return fields;
 	}
-	
+
 	/* BASIC CONNECTION: store and dispatch */
-	
-	static function hasMapState(fields:Array<Field>) 
+
+	static function hasMapState(fields:Array<Field>)
 	{
 		for (field in fields)
 			if (field.name == 'mapState') return true;
 		return false;
 	}
-	
-	static function addContextTypes(fields:Array<Field>) 
+
+	static function addContextTypes(fields:Array<Field>)
 	{
 		var contextTypes = macro {
 			store: react.React.PropTypes.object.isRequired
@@ -55,11 +55,11 @@ class ConnectMacro
 			pos: Context.currentPos()
 		});
 	}
-	
-	static function addDispatch(fields:Array<Field>) 
+
+	static function addDispatch(fields:Array<Field>)
 	{
 		if (hasField(Context.getLocalClass().get(), 'dispatch')) return;
-		
+
 		fields.push({
 			name: 'dispatch',
 			access: [APublic],
@@ -73,41 +73,45 @@ class ConnectMacro
 			pos: Context.currentPos()
 		});
 	}
-	
-	static function hasField(t:ClassType, name:String) 
+
+	static function hasField(t:ClassType, name:String)
 	{
 		if (t.superClass == null || t.superClass.t == null) return false;
-		
+
 		var sc = t.superClass.t.get();
 		for (field in sc.fields.get())
 			if (field.name == name) return true;
-		
+
 		return hasField(sc, name);
 	}
-	
+
 	/* MAP STATE */
-	
+
 	static function exprUnmount()
 	{
 		return macro {
-			if (__unsubscribe != null) __unsubscribe();
+			if (__unsubscribe != null)
+			{
+				__unsubscribe();
+				__unsubscribe = null;
+			}
 			__state = null;
 		}
 	}
-	
+
 	static function exprMount()
 	{
 		return macro __unsubscribe = context.store.subscribe(__connect);
 	}
-	
-	static function addUnmount(fields:Array<Field>) 
+
+	static function addUnmount(fields:Array<Field>)
 	{
 		var componentWillUnmount = {
 			args: [],
 			ret: macro :Void,
 			expr: exprUnmount()
 		}
-		
+
 		fields.push({
 			name: 'componentWillUnmount',
 			access: [APublic, AOverride],
@@ -115,8 +119,8 @@ class ConnectMacro
 			pos: Context.currentPos()
 		});
 	}
-	
-	static function updateUnmount(fields:Array<Field>) 
+
+	static function updateUnmount(fields:Array<Field>)
 	{
 		for (field in fields)
 		{
@@ -135,15 +139,15 @@ class ConnectMacro
 		}
 		return false;
 	}
-	
-	static function addMount(fields:Array<Field>) 
+
+	static function addMount(fields:Array<Field>)
 	{
 		var componentDidMount = {
 			args: [],
 			ret: macro :Void,
 			expr: exprMount()
 		}
-		
+
 		fields.push({
 			name: 'componentDidMount',
 			access: [APublic, AOverride],
@@ -151,8 +155,8 @@ class ConnectMacro
 			pos: Context.currentPos()
 		});
 	}
-	
-	static function updateMount(fields:Array<Field>) 
+
+	static function updateMount(fields:Array<Field>)
 	{
 		for (field in fields)
 		{
@@ -171,8 +175,8 @@ class ConnectMacro
 		}
 		return false;
 	}
-	
-	static function addConnect(fields:Array<Field>) 
+
+	static function addConnect(fields:Array<Field>)
 	{
 		fields.push({
 			name: '__connect',
@@ -181,19 +185,22 @@ class ConnectMacro
 				args:[],
 				ret: macro :Void,
 				expr: macro {
-					var state = mapState(context.store.getState(), props);
-					if (__state == null || !react.ReactUtil.shallowCompare(__state, state))
+					if (__unsubscribe != null)
 					{
-						__state = state;
-						setState(state);
+						var state = mapState(context.store.getState(), props);
+						if (__state == null || !react.ReactUtil.shallowCompare(__state, state))
+						{
+							__state = state;
+							setState(state);
+						}
 					}
 				}
 			}),
 			pos: Context.currentPos()
 		});
 	}
-	
-	static function addCache(fields:Array<Field>) 
+
+	static function addCache(fields:Array<Field>)
 	{
 		fields.push({
 			name: '__state',
@@ -202,8 +209,8 @@ class ConnectMacro
 			pos: Context.currentPos()
 		});
 	}
-	
-	static function addUnsub(fields:Array<Field>) 
+
+	static function addUnsub(fields:Array<Field>)
 	{
 		fields.push({
 			name: '__unsubscribe',
@@ -213,7 +220,7 @@ class ConnectMacro
 		});
 	}
 
-	static function updateCtor(fields:Array<Field>) 
+	static function updateCtor(fields:Array<Field>)
 	{
 		var propsArg = { name: 'props', type: macro :Dynamic };
 		var contextArg = { name: 'context', type: macro :Dynamic };
