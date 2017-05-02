@@ -28,6 +28,7 @@ class ConnectMacro
 			addConnect(fields);
 			if (!updateMount(fields)) addMount(fields);
 			if (!updateUnmount(fields)) addUnmount(fields);
+
 			// set initial state in constructor
 			updateCtor(fields);
 		}
@@ -35,13 +36,6 @@ class ConnectMacro
 	}
 
 	/* BASIC CONNECTION: store and dispatch */
-
-	static function hasMapState(fields:Array<Field>)
-	{
-		for (field in fields)
-			if (field.name == 'mapState') return true;
-		return false;
-	}
 
 	static function addContextTypes(fields:Array<Field>)
 	{
@@ -86,6 +80,13 @@ class ConnectMacro
 	}
 
 	/* MAP STATE */
+
+	static function hasMapState(fields:Array<Field>)
+	{
+		for (field in fields)
+			if (field.name == 'mapState') return true;
+		return false;
+	}
 
 	static function exprUnmount()
 	{
@@ -224,13 +225,7 @@ class ConnectMacro
 	{
 		var propsArg = { name: 'props', type: macro :Dynamic };
 		var contextArg = { name: 'context', type: macro :Dynamic };
-
-		var updateStateExpr = macro {
-			__state = mapState(context.store.getState(), props);
-
-			if (__state != null)
-				state = react.ReactUtil.copy(state == null ? {} : state, __state);
-		};
+		var initCacheExpr = macro __state = mapState(context.store.getState(), props);
 
 		for (field in fields)
 			if (field.name == 'new')
@@ -240,6 +235,15 @@ class ConnectMacro
 					case FFun(f):
 						if (f.args.length < 1) f.args.push(propsArg);
 						if (f.args.length < 2) f.args.push(contextArg);
+
+						var updateStateExpr = macro {
+							$initCacheExpr;
+
+							state = (state == null)
+								? cast __state
+								: react.ReactUtil.copy(state, __state);
+						};
+
 						f.expr = macro {
 							${f.expr}
 							$updateStateExpr;
@@ -261,7 +265,7 @@ class ConnectMacro
 				ret: null,
 				expr: macro {
 					super(props);
-					$updateStateExpr;
+					state = cast $initCacheExpr;
 				}
 			}),
 			pos: Context.currentPos()
