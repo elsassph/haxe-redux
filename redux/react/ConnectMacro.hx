@@ -46,7 +46,7 @@ class ConnectMacro
 	static function addContextTypes(fields:Array<Field>)
 	{
 		var contextTypes = macro {
-			store: react.React.PropTypes.object.isRequired
+			store: react.ReactPropTypes.object.isRequired
 		};
 		fields.push({
 			name: 'contextTypes',
