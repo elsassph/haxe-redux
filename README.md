@@ -219,3 +219,9 @@ class MyComp extends ReactComponentOfProps<MyCompProps> {
 	}
 }
 ```
+
+## Changes
+
+### 0.5.0 
+
+- Compatibility with haxe-react 1.2.0: changed to use `react.ReactPropTypes` instead of `react.React.PropTypes`
