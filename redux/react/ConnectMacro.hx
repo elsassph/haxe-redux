@@ -224,7 +224,13 @@ class ConnectMacro
 	{
 		var propsArg = { name: 'props', type: macro :Dynamic };
 		var contextArg = { name: 'context', type: macro :Dynamic };
-		var updateStateExpr = macro state = __state = mapState(context.store.getState(), props);
+
+		var updateStateExpr = macro {
+			__state = mapState(context.store.getState(), props);
+
+			if (__state != null)
+				state = react.ReactUtil.copy(state == null ? {} : state, __state);
+		};
 
 		for (field in fields)
 			if (field.name == 'new')
