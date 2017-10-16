@@ -14,7 +14,7 @@ class StoreBuilder
 		var type = of.getName();
 		return function(state:Dynamic, action:ActionPayload) {
 			if (state == null) state = service.initState;
-			if (action.type == type) return service.reduce(state, action.value);
+			if (StringTools.startsWith(action.type, type)) return service.reduce(state, action.value);
 			else return state;
 		}
 	}

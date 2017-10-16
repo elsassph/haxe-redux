@@ -1,6 +1,7 @@
 package redux;
 
 import js.Promise;
+using haxe.EnumTools.EnumValueTools;
 
 #if redux_global
 @:native('Redux')
@@ -58,10 +59,9 @@ abstract Action(ActionPayload)
 	
 	@:from static public function map(ev:EnumValue)
 	{
-		var e = Type.getEnum(ev);
 		return new Action({
-			type:e.getName(),
-			value:ev
+			type: Type.getEnum(ev).getName() + '.' + ev.getName(),
+			value: ev
 		});
 	}
 }
