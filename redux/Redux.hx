@@ -51,7 +51,7 @@ typedef ActionPayload = {
 @:forward(type, value)
 abstract Action(ActionPayload)
 {
-	inline function new(a:ActionPayload)
+	public inline function new(a:ActionPayload)
 	{
 		this = a;
 	}
