@@ -62,7 +62,7 @@ class ReactConnectorMacro {
 		if (mergeProps == null) addMergeProps(fields);
 		if (options == null) addOptions(fields);
 
-		addConnected(jsxStatic, fields);
+		addConnected(jsxStatic, wrappedComponent, inClass.name, fields);
 		addRender(fields, componentPropsType, wrappedComponent, inClass);
 
 		return fields;
@@ -507,8 +507,12 @@ class ReactConnectorMacro {
 		};
 	}
 
-	static function addConnected(jsxStatic:String, fields:Array<Field>)
-	{
+	static function addConnected(
+		jsxStatic:String,
+		wrappedComponent:ComplexType,
+		containerName:String,
+		fields:Array<Field>
+	) {
 		fields.push({
 			name: jsxStatic,
 			access: [AStatic, APublic],
@@ -525,22 +529,46 @@ class ReactConnectorMacro {
 				args: [],
 				params: [],
 				ret: macro :react.React.CreateElementType,
-				expr: getConnectedExpr(jsxStatic)
+				expr: getConnectedExpr(jsxStatic, wrappedComponent, containerName)
 			}),
 			pos: Context.currentPos()
 		});
 	}
 
-	static function getConnectedExpr(jsxStatic:String)
-	{
+	static function getConnectedExpr(
+		jsxStatic:String,
+		wrappedComponent:ComplexType,
+		containerName:String
+	) {
+		var componentName = (wrappedComponent != null)
+			? ComplexTypeTools.toString(wrappedComponent)
+			: null;
+
+		var componentDisplayNameExpr = macro {};
+		var containerDisplayNameExpr = macro {};
+
+		#if debug
+		componentName = componentName == null
+			? 'UnknownWrappedComponent'
+			: 'Wrapped_$componentName';
+
+		componentDisplayNameExpr = macro untyped render.displayName = $v{componentName};
+		containerDisplayNameExpr = macro untyped $i{jsxStatic}.displayName = $v{containerName};
+		#end
+
 		return macro {
-			if ($i{jsxStatic} == null)
+			if ($i{jsxStatic} == null) {
+				${componentDisplayNameExpr};
+
 				$i{jsxStatic} = redux.react.ReactRedux.connect(
 					mapStateToProps,
 					mapDispatchToProps,
 					mergeProps,
 					options
 				)(render);
+
+				${containerDisplayNameExpr};
+			}
 
 			return $i{jsxStatic};
 		};
