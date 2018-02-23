@@ -92,7 +92,7 @@ public function middleware(store:StoreMethods<ApplicationState>, action:TodoActi
 
 ## React Connect
 
-### High Order Component (HOC) approach
+### Higher Order Component (HOC) approach
 
 Normally for React, you're expected to use react-redux's `connect` function:
 http://redux.js.org/docs/basics/UsageWithReact.html
@@ -102,15 +102,9 @@ HOC will create a component wrapper that maps the redux state into the wrapped c
 A partial implementation of the above link's example would be:
 
 ```haxe
-// A ReactConnector providing `TodoListProps`
-class VisibleTodoList extends ReactConnector<TodoListProps>
+// A ReactConnector providing `TodoListProps`, with `TodoList` as default wrapped component
+class VisibleTodoList extends ReactConnector<TodoList, TodoListProps>
 {
-	// Default component to wrap
-	// If not set, children props will be updated
-	// If not set & no children, will render a React empty node
-	// If set but children available, children props will be updated instead of using this component
-	static var wrappedComponent:TodoList;
-
 	static function mapStateToProps(state:ApplicationState, ownProps:Dynamic):Partial<TodoListProps>
 	{
 		return {
@@ -127,15 +121,6 @@ class VisibleTodoList extends ReactConnector<TodoListProps>
 		}
 	}
 
-	@:connect
-	static function onTodoClick(dispatch:Dispatch, id:Int):Void
-	{
-		dispatch(TodoAction.Toggle(id));
-	}
-
-	/*
-	Alternative to `@:connect`:
-	```
 	static function mapDispatchToProps(dispatch:Dispatch, ownProps:Dynamic):Partial<TodoListProps>
 	{
 		return {
@@ -144,8 +129,6 @@ class VisibleTodoList extends ReactConnector<TodoListProps>
 			}
 		};
 	}
-	```
-	*/
 }
 ```
 

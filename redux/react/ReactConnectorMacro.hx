@@ -6,6 +6,7 @@ import haxe.macro.Expr;
 import haxe.macro.ExprTools;
 import haxe.macro.Type;
 import haxe.macro.TypeTools;
+import react.jsx.JsxStaticMacro;
 import react.ReactMacro;
 import redux.macro.MacroUtil.*;
 
@@ -14,7 +15,6 @@ enum ConnectedFunction {
 	WithDispatchAndOwnProps(field:Field);
 }
 
-@:access(react.ReactMacro)
 class ReactConnectorMacro {
 	static inline var DEFAULT_JSX_STATIC:String = 'Connected';
 
@@ -23,6 +23,7 @@ class ReactConnectorMacro {
 		var inClass = Context.getLocalClass().get();
 		var fields = Context.getBuildFields();
 
+		var wrappedComponent:Null<ComplexType> = null;
 		var componentPropsType = macro :Dynamic;
 		var ownPropsType = macro :Dynamic;
 		var jsxStatic = getJsxStaticName(inClass);
@@ -30,8 +31,9 @@ class ReactConnectorMacro {
 		switch (inClass.superClass)
 		{
 			case {params: params, t: _.toString() => 'redux.react.ReactConnect'}:
-				componentPropsType = TypeTools.toComplexType(params[0]);
-				ownPropsType = TypeTools.toComplexType(params[1]);
+				wrappedComponent = extractOptionalType(params[0]);
+				componentPropsType = TypeTools.toComplexType(params[1]);
+				ownPropsType = TypeTools.toComplexType(params[2]);
 
 			default:
 				Context.fatalError('You cannot inherit from a react connector', inClass.pos);
@@ -40,23 +42,13 @@ class ReactConnectorMacro {
 		checkNonStaticFields(fields);
 		checkReservedFields(fields, jsxStatic);
 
-		var wrappedComponent = getWrappedComponent(fields, componentPropsType);
-		var connectedFunctions = getConnectedFunctions(fields, ownPropsType, componentPropsType, inClass);
-
 		var mapStateToProps = getMapStateToProps(fields, ownPropsType, componentPropsType);
 		var mapDispatchToProps = getMapDispatchToProps(fields, ownPropsType, componentPropsType);
 		var mergeProps = getMergeProps(fields, ownPropsType, componentPropsType);
 		var options = getOptions(fields);
 
 		if (mapDispatchToProps == null)
-			addMapDispatchToProps(
-				fields,
-				connectedFunctions,
-				ownPropsType,
-				componentPropsType
-			);
-		else if (connectedFunctions.length > 0)
-			addMapDispatchToPropsWarnings(connectedFunctions);
+			addMapDispatchToProps(fields, ownPropsType, componentPropsType);
 
 		if (mapStateToProps == null) addMapStateToProps(fields);
 		if (mergeProps == null) addMergeProps(fields);
@@ -66,6 +58,23 @@ class ReactConnectorMacro {
 		addRender(fields, componentPropsType, wrappedComponent, inClass);
 
 		return fields;
+	}
+
+	static function extractOptionalType(type:Type):Null<ComplexType> {
+		return switch (type) {
+			case TType(_.get() => {name: 'TVoid'}, _): null;
+			default: TypeTools.toComplexType(type);
+		};
+	}
+
+	static function extractClassName(cls:Null<ComplexType>):Null<String>
+	{
+		if (cls == null) return null;
+
+		return switch (cls) {
+			case TPath({name: name}): name;
+			default: null;
+		}
 	}
 
 	static function checkNonStaticFields(fields:Array<Field>):Void
@@ -88,170 +97,11 @@ class ReactConnectorMacro {
 
 	static function getJsxStaticName(inClass:ClassType):String
 	{
-		if (inClass.meta.has(':jsxStatic')) 
-			return extractMetaString(inClass.meta, ':jsxStatic');
+		if (inClass.meta.has(JsxStaticMacro.META_NAME))
+			return extractMetaString(inClass.meta, JsxStaticMacro.META_NAME);
 
-		inClass.meta.add(':jsxStatic', [macro $v{DEFAULT_JSX_STATIC}], inClass.pos);
+		inClass.meta.add(JsxStaticMacro.META_NAME, [macro $v{DEFAULT_JSX_STATIC}], inClass.pos);
 		return DEFAULT_JSX_STATIC;
-	}
-
-	static function getWrappedComponent(fields:Array<Field>, componentPropsType:ComplexType):ComplexType
-	{
-		var wrappedComponent = Lambda.find(fields, function(field) {
-			return field.name == 'wrappedComponent';
-		});
-		
-		if (wrappedComponent == null) return null;
-
-		return switch (wrappedComponent.kind) {
-			case FVar(t, _): t;
-			default: null;
-		};
-	}
-
-	static function getConnectedFunctions(
-		fields:Array<Field>,
-		propsType:ComplexType,
-		componentPropsType:ComplexType,
-		inClass:ClassType
-	):Array<ConnectedFunction> {
-		return fields
-			.filter(function(field) {
-				return Lambda.find(field.meta, function(meta) {
-					return meta.name == ':connect';
-				}) != null;
-			})
-			.map(function(field) {
-				switch (field.kind)
-				{
-					case FFun({args: args, expr: _, params: _, ret: ret}):
-						if (args.length == 0)
-							Context.fatalError(
-								'Connected functions must accept a Dispatch argument',
-								field.pos
-							);
-
-						if (!isDispatch(args[0].type))
-							Context.fatalError(
-								'First argument of connected functions must be Dispatch',
-								field.pos
-							);
-
-						var fields = getAnonymousFields(componentPropsType);
-						if (fields == null)
-							Context.fatalError(
-								'Wrapped components props must be anonymous objects', 
-								inClass.pos
-							);
-
-						for (ref in fields)
-							if (ref.name == field.name)
-								return validateConnectedFunction(
-									ref, 
-									field, 
-									propsType, 
-									args.slice(1), 
-									ret
-								);
-
-					default:
-						Context.fatalError('Only functions can be connected with @:connect', field.pos);
-				}
-
-				return null;
-			});
-	}
-
-	static function validateConnectedFunction(
-		ref:ClassField,
-		field:Field,
-		propsType:ComplexType,
-		fieldArgs:Array<FunctionArg>,
-		fieldRet:ComplexType
-	):ConnectedFunction {
-		var refType = TypeTools.follow(ref.type);
-		var needsOwnProps = false;
-
-		switch (refType)
-		{
-			case TFun(args, ret):
-				if (fieldRet == null)
-					Context.warning(
-						'You should specify the return type to allow type checking against props\n' +
-						'(should be ${TypeTools.toString(ret)} to match props)',
-						field.pos
-					);
-				else if (!TypeTools.unify(ret, ComplexTypeTools.toType(fieldRet)))
-				{
-					Context.fatalError('Return type does not match props', field.pos);
-				}
-
-				// trace(printFunctionSignature(
-				// 	fieldArgs.map(function(arg) return arg.type == null ? null : ComplexTypeTools.toType(arg.type)), 
-				// 	ComplexTypeTools.toType(fieldRet)
-				// ));
-
-				if (args.length < fieldArgs.length)
-				{
-					if (unifyComplexTypes(fieldArgs[0].type, propsType))
-					{
-						fieldArgs = fieldArgs.slice(1);
-						needsOwnProps = true;
-					}
-				}
-
-				if (args.length != fieldArgs.length)
-				{
-					var functionSign = printFunctionSignature(args.map(function(arg) return arg.t), ret);
-					var wantedSign = 
-						'dispatch: Dispatch -> ' + functionSign
-						+ '\nor\n dispatch: Dispatch -> ownProps: ' 
-						+ ComplexTypeTools.toString(propsType)
-						+ ' -> ' + functionSign;
-
-					Context.fatalError(
-						'Field `${ref.name}` does not match props type. Wanted:\n $wantedSign',
-						field.pos
-					);
-				}
-
-				for (i in 0...args.length)
-				{
-					var wantedType = args[i].t;
-					var wantedTypeStr = TypeTools.toString(wantedType);
-
-					var fieldArg = fieldArgs[i];
-					var fieldName = fieldArg.name;
-					var fieldType = fieldArg.type;
-
-					if (fieldArg.type == null)
-					{
-						Context.warning(
-							'You should specify the type for argument `$fieldName`\n'
-							+ '(should be $wantedTypeStr to match props)',
-							field.pos
-						);
-					}
-					else if (!TypeTools.unify(wantedType, ComplexTypeTools.toType(fieldType)))
-					{
-						var fieldTypeStr = ComplexTypeTools.toString(fieldType);
-
-						Context.fatalError(
-							'Argument `$fieldName` does not match props:\n'
-							+ '$fieldTypeStr should be $wantedTypeStr',
-							field.pos
-						);
-					}
-				}
-
-			default:
-				Context.fatalError(
-					'Only functions can be connected with @:connect',
-					field.pos
-				);
-		}
-
-		return needsOwnProps ? WithDispatchAndOwnProps(field) : WithDispatch(field);
 	}
 
 	static function getMapStateToProps(
@@ -272,7 +122,17 @@ class ReactConnectorMacro {
 								field.pos
 							);
 
-						if (args.length == 2 && !unifyComplexTypes(args[1].type, propsType))
+						// Add second (optional) parameter for OwnProps for connect()'s typing
+						if (args.length == 1)
+							args.push({
+								name: "_",
+								opt: true,
+								type: null,
+								value: null,
+								meta: null
+							});
+
+						else if (args.length == 2 && !unifyComplexTypes(args[1].type, propsType))
 							Context.fatalError(
 								'mapStateToProps: second argument must match '
 								+ 'the container\'s props type.',
@@ -322,7 +182,17 @@ class ReactConnectorMacro {
 								field.pos
 							);
 
-						if (args.length == 2 && !unifyComplexTypes(args[1].type, propsType))
+						// Add second (optional) parameter for OwnProps for connect()'s typing
+						if (args.length == 1)
+							args.push({
+								name: "_",
+								opt: true,
+								type: null,
+								value: null,
+								meta: null
+							});
+
+						else if (args.length == 2 && !unifyComplexTypes(args[1].type, propsType))
 							Context.fatalError(
 								'mapDispatchToProps: second argument must match '
 								+ 'the container\'s props type.',
@@ -439,22 +309,8 @@ class ReactConnectorMacro {
 		return null;
 	}
 
-	static function addMapDispatchToPropsWarnings(connectedFunctions:Array<ConnectedFunction>)
-	{
-		for (field in connectedFunctions)
-			switch (field) {
-				case WithDispatch(f), WithDispatchAndOwnProps(f):
-					Context.warning(
-						'@:connect functions will not be connected by the macro '
-						+ 'when you define mapDispatchToProps',
-						f.pos
-					);
-			}
-	}
-
 	static function addMapDispatchToProps(
 		fields:Array<Field>,
-		connectedFunctions:Array<ConnectedFunction>,
 		propsType:ComplexType,
 		componentPropsType:ComplexType
 	) {
@@ -470,35 +326,18 @@ class ReactConnectorMacro {
 				],
 				params: [],
 				ret: getPartialType(componentPropsType),
-				expr: mapDispatchToPropsExpr(connectedFunctions)
+				expr: mapDispatchToPropsExpr()
 			}),
 			pos: Context.currentPos()
 		});
 	}
 
-	static function mapDispatchToPropsExpr(connectedFunctions:Array<ConnectedFunction>)
+	static function mapDispatchToPropsExpr()
 	{
-		var propsFields = [
-			for (connectedFunction in connectedFunctions)
-				switch (connectedFunction) {
-					case WithDispatch(field):
-						{
-							field: field.name,
-							expr: macro $i{field.name}.bind(dispatch)
-						};
-
-					case WithDispatchAndOwnProps(field):
-						{
-							field: field.name,
-							expr: macro $i{field.name}.bind(dispatch, ownProps)
-						};
-				}
-		];
-
 		return {
 			expr: EBlock([{
 				expr: EReturn({
-					expr: EObjectDecl(propsFields),
+					expr: EObjectDecl([]),
 					pos: Context.currentPos()
 				}),
 				pos: Context.currentPos()
@@ -540,20 +379,19 @@ class ReactConnectorMacro {
 		wrappedComponent:ComplexType,
 		containerName:String
 	) {
-		var componentName = (wrappedComponent != null)
-			? ComplexTypeTools.toString(wrappedComponent)
-			: null;
-
 		var componentDisplayNameExpr = macro {};
 		var containerDisplayNameExpr = macro {};
+		var containerDefaultPropsExpr = macro {};
 
 		#if debug
+		var componentName = extractClassName(wrappedComponent);
 		componentName = componentName == null
 			? 'UnknownWrappedComponent'
 			: 'Wrapped_$componentName';
 
 		componentDisplayNameExpr = macro untyped render.displayName = $v{componentName};
 		containerDisplayNameExpr = macro untyped $i{jsxStatic}.displayName = $v{containerName};
+		containerDefaultPropsExpr = macro untyped $i{jsxStatic}.defaultProps = $i{containerName}.defaultProps;
 		#end
 
 		return macro {
@@ -568,6 +406,7 @@ class ReactConnectorMacro {
 				)(render);
 
 				${containerDisplayNameExpr};
+				${containerDefaultPropsExpr};
 			}
 
 			return $i{jsxStatic};
@@ -580,19 +419,26 @@ class ReactConnectorMacro {
 		wrappedComponent:ComplexType,
 		inClass:ClassType
 	) {
-		var componentName = switch (ComplexTypeTools.toType(wrappedComponent)) {
-			case TInst(compClass, _):
-				compClass.get().name;
-			
-			case null: 
-				null;
+		var componentName = null;
 
-			default:
-				Context.fatalError(
-					'Invalid wrapped component for React Container',
-					inClass.pos
-				);
-		};
+		if (wrappedComponent != null) {
+			componentName = switch (ComplexTypeTools.toType(wrappedComponent)) {
+				case TInst(_.get() => cls, _):
+					if (cls.meta.has(JsxStaticMacro.META_NAME)) {
+						var staticField = JsxStaticMacro.extractMetaString(cls.meta, JsxStaticMacro.META_NAME);
+						[cls.name, staticField];
+					} else {
+						[cls.name];
+					}
+
+				default:
+					Context.fatalError(
+						'Invalid wrapped component for React Container',
+						inClass.pos
+					);
+					null;
+			};
+		}
 
 		fields.push({
 			name: 'render',
@@ -606,32 +452,43 @@ class ReactConnectorMacro {
 				}],
 				params: [],
 				ret: null,
-				expr: renderExpr(componentName, inClass.pos)
+				expr: renderExpr(inClass, componentName, inClass.pos)
 			}),
 			pos: Context.currentPos()
 		});
 	}
 
-	static function renderExpr(componentName:String, pos:Position)
+	static function renderExpr(container:ClassType, componentName:Null<Array<String>>, pos:Position)
 	{
-		var jsx = macro null;
-
-		if (componentName != null) {
-			var jsxStr = '<' + componentName + ' {...props} />';
-			jsx = ReactMacro.parseJsx(jsxStr, pos);
-		}
+		var renderWithoutChildren:Expr = componentName == null
+			? macro {
+				#if debug
+				if (react.React.Children.count(children) == 0)
+					js.Browser.console.error('Container ' + $v{container.name} + ' cannot be used without children');
+				#end
+				return null;
+			}
+			: macro return react.React.createElement($p{componentName}, props);
 
 		return macro {
 			var children = untyped props.children;
+			var props = react.ReactUtil.copyWithout(props, null, ['children']);
 
-			if (children != null && react.React.isValidElement(children))
-			{
-				return react.React.Children.map(
-					children, 
-					function(child) return react.React.cloneElement(child, props)
+			if (children != null) {
+				var newChildren = react.React.Children.map(
+					children,
+					function(child) {
+						if (react.React.isValidElement(child)) {
+							return react.React.cloneElement(child, props);
+						}
+
+						return child;
+					}
 				);
+
+				return react.React.createElement(react.Fragment, {}, react.React.Children.toArray(newChildren));
 			} else {
-				return ${jsx};
+				$renderWithoutChildren;
 			}
 		};
 	}
