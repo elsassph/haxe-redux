@@ -1,5 +1,6 @@
 package redux.react;
 
+import haxe.Constraints.Function;
 import haxe.extern.EitherType;
 import redux.Redux;
 import react.Partial;
@@ -12,19 +13,19 @@ import react.React.CreateElementType;
 #end
 extern class ReactRedux
 {
-
-	public static function connect(
-		?mapStateToProps: EitherType<Dynamic -> Dynamic -> Dynamic, Dynamic -> ?Dynamic -> Dynamic>,
-		?mapDispatchToProps: EitherType<Dynamic -> Dynamic -> Dynamic, Dynamic -> ?Dynamic -> Dynamic>,
-		?mergeProps: Dispatch -> Dynamic -> Dynamic -> Dynamic,
+	// https://github.com/reactjs/react-redux/blob/master/docs/api.md#connectmapstatetoprops-mapdispatchtoprops-mergeprops-options
+	public static function connect<TStateProps, TDispatchProps, TOwnProps, TProps>(
+		?mapStateToProps: Function,
+		?mapDispatchToProps: Dynamic,
+		?mergeProps: TStateProps -> TDispatchProps -> TOwnProps -> TProps,
 		?options: Partial<ConnectOptions>
 	): CreateElementType -> CreateElementType;
-
 }
 
 typedef ConnectAdvancedOptions = {
 	/**
-		Computes the connector component's displayName property relative to that of the wrapped component. Usually overridden by wrapper functions.
+		Computes the connector component's displayName property relative to
+		that of the wrapped component. Usually overridden by wrapper functions.
 		Default value: name => 'ConnectAdvanced(' + name + ')'
 	*/
 	var getDisplayName: String -> String;
@@ -36,25 +37,32 @@ typedef ConnectAdvancedOptions = {
 	var methodName: String;
 
 	/**
-		If defined, a property named this value will be added to the props passed to the wrapped component. Its value will be the number of times the component has been rendered, which can be useful for tracking down unnecessary re-renders.
+		If defined, a property named this value will be added to the props
+		passed to the wrapped component. Its value will be the number of times
+		the component has been rendered, which can be useful for tracking down
+		unnecessary re-renders.
 		Default value: undefined
 	*/
 	var renderCountProp: String;
 
 	/**
-		Controls whether the connector component subscribes to redux store state changes. If set to false, it will only re-render on componentWillReceiveProps.
+		Controls whether the connector component subscribes to redux store
+		state changes. If set to false, it will only re-render on
+		componentWillReceiveProps.
 		Default value: true
 	*/
 	var shouldHandleStateChanges: Bool;
 
 	/**
-		The key of props/context to get the store. You probably only need this if you are in the inadvisable position of having multiple stores.
+		The key of props/context to get the store. You probably only need this
+		if you are in the inadvisable position of having multiple stores.
 		Default value: 'store'
 	*/
 	var storeKey: String;
 
 	/**
-		If true, stores a ref to the wrapped component instance and makes it available via getWrappedInstance() method.
+		If true, stores a ref to the wrapped component instance and makes it
+		available via getWrappedInstance() method.
 		Default value: false
 	*/
 	var withRef: Bool;
@@ -64,7 +72,12 @@ typedef ConnectOptions = {
 	> ConnectAdvancedOptions,
 
 	/**
-		If true, connect() will avoid re-renders and calls to mapStateToProps, mapDispatchToProps, and mergeProps if the relevant state/props objects remain equal based on their respective equality checks. Assumes that the wrapped component is a “pure” component and does not rely on any input or state other than its props and the selected Redux store’s state.
+		If true, connect() will avoid re-renders and calls to mapStateToProps,
+		mapDispatchToProps, and mergeProps if the relevant state/props objects
+		remain equal based on their respective equality checks. Assumes that
+		the wrapped component is a “pure” component and does not rely on any
+		input or state other than its props and the selected Redux store’s
+		state.
 		Default value: true
 	**/
 	var pure: Bool;

@@ -47,10 +47,8 @@ class ReactConnectorMacro {
 		var mergeProps = getMergeProps(fields, ownPropsType, componentPropsType);
 		var options = getOptions(fields);
 
-		if (mapDispatchToProps == null)
-			addMapDispatchToProps(fields, ownPropsType, componentPropsType);
-
 		if (mapStateToProps == null) addMapStateToProps(fields);
+		if (mapDispatchToProps == null) addMapDispatchToProps(fields);
 		if (mergeProps == null) addMergeProps(fields);
 		if (options == null) addOptions(fields);
 
@@ -116,36 +114,12 @@ class ReactConnectorMacro {
 				switch (field.kind)
 				{
 					case FFun({args: args, ret: ret}):
-						if (args.length == 0 || args.length > 2)
-							Context.fatalError(
-								'mapStateToProps must accept one or two arguments',
-								field.pos
-							);
+						// TODO:
+						// Extract args and ret from function return, and call checkMapStateToProps
+						// With them when args.length == 0 to ensure factory function's typing.
 
-						// Add second (optional) parameter for OwnProps for connect()'s typing
-						if (args.length == 1)
-							args.push({
-								name: "_",
-								opt: true,
-								type: null,
-								value: null,
-								meta: null
-							});
-
-						else if (args.length == 2 && !unifyComplexTypes(args[1].type, propsType))
-							Context.fatalError(
-								'mapStateToProps: second argument must match '
-								+ 'the container\'s props type.',
-								field.pos
-							);
-
-						if (!unifyComplexTypes(ret, componentPropsType))
-							if (!unifyComplexTypes(ret, getPartialType(componentPropsType)))
-								Context.fatalError(
-									'mapStateToProps must return the wrapped component\'s '
-									+ 'props type (or a Partial<> of it)',
-									field.pos
-								);
+						if (args.length != 0)
+							checkMapStateToProps(propsType, componentPropsType, args, ret, field.pos);
 
 					default:
 						Context.fatalError('mapStateToProps must be a function', field.pos);
@@ -156,6 +130,36 @@ class ReactConnectorMacro {
 		}
 
 		return null;
+	}
+
+	static function checkMapStateToProps(
+		propsType:ComplexType,
+		componentPropsType:ComplexType,
+		args:Array<FunctionArg>,
+		ret:ComplexType,
+		pos:Position
+	) {
+		if (args.length == 0 || args.length > 2)
+			Context.fatalError(
+				'mapStateToProps must accept one or two arguments',
+				pos
+			);
+
+		if (args.length == 2 && !unifyComplexTypes(args[1].type, propsType))
+			Context.fatalError(
+				'mapStateToProps: second argument must match '
+				+ 'the container\'s props type.',
+				pos
+			);
+
+		if (!unifyComplexTypes(ret, componentPropsType))
+			if (!unifyComplexTypes(ret, getPartialType(componentPropsType)))
+				Context.fatalError(
+					'mapStateToProps must return the wrapped component\'s '
+					+ 'props type (or a Partial<> of it)',
+					pos
+				);
+
 	}
 
 	static function getMapDispatchToProps(
@@ -170,48 +174,15 @@ class ReactConnectorMacro {
 				switch (field.kind)
 				{
 					case FFun({args: args, ret: ret}):
-						if (args.length == 0 || args.length > 2)
-							Context.fatalError(
-								'mapDispatchToProps must accept one or two arguments',
-								field.pos
-							);
+						// TODO:
+						// Extract args and ret from function return, and call checkMapDispatchToProps
+						// With them when args.length == 0 to ensure factory function's typing.
 
-						if (!isDispatch(args[0].type))
-							Context.fatalError(
-								'mapDispatchToProps: first argument must of type Dispatch',
-								field.pos
-							);
-
-						// Add second (optional) parameter for OwnProps for connect()'s typing
-						if (args.length == 1)
-							args.push({
-								name: "_",
-								opt: true,
-								type: null,
-								value: null,
-								meta: null
-							});
-
-						else if (args.length == 2 && !unifyComplexTypes(args[1].type, propsType))
-							Context.fatalError(
-								'mapDispatchToProps: second argument must match '
-								+ 'the container\'s props type.',
-								field.pos
-							);
-
-						if (!unifyComplexTypes(ret, componentPropsType))
-							if (!unifyComplexTypes(ret, getPartialType(componentPropsType)))
-								Context.fatalError(
-									'mapDispatchToProps must return the wrapped component\'s '
-									+ 'props type (or a Partial<> of it)',
-									field.pos
-								);
+						if (args.length != 0)
+							checkMapDispatchToProps(propsType, componentPropsType, args, ret, field.pos);
 
 					default:
-						Context.fatalError(
-							'Current implementation only handles mapDispatchToProps as a function',
-							field.pos
-						);
+						// Assuming mapDispatchToProps as object containing action creators
 				}
 
 				return field;
@@ -219,6 +190,41 @@ class ReactConnectorMacro {
 		}
 
 		return null;
+	}
+
+	static function checkMapDispatchToProps(
+		propsType:ComplexType,
+		componentPropsType:ComplexType,
+		args:Array<FunctionArg>,
+		ret:ComplexType,
+		pos:Position
+	) {
+		if (args.length == 0 || args.length > 2)
+			Context.fatalError(
+				'mapDispatchToProps must accept one or two arguments',
+				pos
+			);
+
+		if (!isDispatch(args[0].type))
+			Context.fatalError(
+				'mapDispatchToProps: first argument must of type Dispatch',
+				pos
+			);
+
+		if (args.length == 2 && !unifyComplexTypes(args[1].type, propsType))
+			Context.fatalError(
+				'mapDispatchToProps: second argument must match '
+				+ 'the container\'s props type.',
+				pos
+			);
+
+		if (!unifyComplexTypes(ret, componentPropsType))
+			if (!unifyComplexTypes(ret, getPartialType(componentPropsType)))
+				Context.fatalError(
+					'mapDispatchToProps must return the wrapped component\'s '
+					+ 'props type (or a Partial<> of it)',
+					pos
+				);
 	}
 
 	static function getMergeProps(
@@ -307,43 +313,6 @@ class ReactConnectorMacro {
 		}
 
 		return null;
-	}
-
-	static function addMapDispatchToProps(
-		fields:Array<Field>,
-		propsType:ComplexType,
-		componentPropsType:ComplexType
-	) {
-		fields.push({
-			name: 'mapDispatchToProps',
-			doc: null,
-			meta: [],
-			access: [AStatic],
-			kind: FFun({
-				args: [
-					{type: macro :redux.Redux.Dispatch, name: 'dispatch'},
-					{type: propsType, name: 'ownProps', opt: true}
-				],
-				params: [],
-				ret: getPartialType(componentPropsType),
-				expr: mapDispatchToPropsExpr()
-			}),
-			pos: Context.currentPos()
-		});
-	}
-
-	static function mapDispatchToPropsExpr()
-	{
-		return {
-			expr: EBlock([{
-				expr: EReturn({
-					expr: EObjectDecl([]),
-					pos: Context.currentPos()
-				}),
-				pos: Context.currentPos()
-			}]),
-			pos: Context.currentPos()
-		};
 	}
 
 	static function addConnected(
@@ -499,6 +468,16 @@ class ReactConnectorMacro {
 			name: 'mapStateToProps',
 			access: [AStatic],
 			kind: FProp('default', 'null', macro :Dynamic, macro null),
+			pos: Context.currentPos()
+		});
+	}
+
+	static function addMapDispatchToProps(fields:Array<Field>)
+	{
+		fields.push({
+			name: 'mapDispatchToProps',
+			access: [AStatic],
+			kind: FProp('default', 'null', macro :Dynamic, macro {}),
 			pos: Context.currentPos()
 		});
 	}
