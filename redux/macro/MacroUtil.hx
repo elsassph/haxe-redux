@@ -37,6 +37,14 @@ class MacroUtil {
 		}
 	}
 
+	static function hasField(fields:Array<Field>, fieldName:String):Bool
+	{
+		for (f in fields)
+			if (f.name == fieldName) return true;
+
+		return false;
+	}
+
 	static function printFunctionSignature(
 		args:Array<Type>,
 		ret:Type
@@ -72,7 +80,7 @@ class MacroUtil {
 
 		var params = metas[0].params;
 		if (params.length == 0) return null;
-		
+
 		return ExprTools.getValue(params[0]);
 	}
 }
