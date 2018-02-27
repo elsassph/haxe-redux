@@ -92,37 +92,79 @@ public function middleware(store:StoreMethods<ApplicationState>, action:TodoActi
 
 ## React Connect
 
-### High Order Component (HOC) approach (TODO)
-
-**Note: externs for this approach are NOT included.**
+### Higher Order Component (HOC) approach
 
 Normally for React, you're expected to use react-redux's `connect` function:
 http://redux.js.org/docs/basics/UsageWithReact.html
 
-HOC will create a wrapped component that maps the redux state into component **props**.
+HOC will create a component wrapper that maps the redux state into the wrapped component's **props**.
 
-Using HOCs is a bit awkward in Haxe's class-oriented approach, one way to do it is to store
-the connected class reference in a static field:
+A partial implementation of the above link's example would be:
 
 ```haxe
-class MyComponent extends ReactComponent 
+// A ReactConnector providing `TodoListProps`, with `TodoList` as default wrapped component
+class VisibleTodoList extends ReactConnector<TodoList, TodoListProps>
 {
-	static public var Connected = ReactRedux.connect(mapStateToProps)(MyComponent);
-	
-	static function mapStateToProps(state:State)
+	static function mapStateToProps(state:ApplicationState, ownProps:Dynamic):Partial<TodoListProps>
 	{
-		...
-	} 
-	...
+		return {
+			todos: getVisibleTodos(state.todoList.todos, state.todoList.visibilityFilter)
+		}
+	}
+
+	static function getVisibleTodos(todos:Array<TodoData>, filter:TodoFilter)
+	{
+		return switch (filter) {
+			case SHOW_ALL: todos;
+			case SHOW_COMPLETED: todos.filter(function(t) return t.completed);
+			case SHOW_ACTIVE: todos.filter(function(t) return !t.completed);
+		}
+	}
+
+	static function mapDispatchToProps(dispatch:Dispatch, ownProps:Dynamic):Partial<TodoListProps>
+	{
+		return {
+			onTodoClick: function(id) {
+				return dispatch(TodoAction.Toggle(id));
+			}
+		};
+	}
 }
 ```
 
 ```haxe
+@:jsxStatic('render')
+class TodoList
+{
+	static public function render(props:TodoListProps)
+	{
+		var todos = props.todos.map(function(todo) return jsx('
+			<$Todo
+				key=${todo.id}
+				{...todo}
+				onClick=${props.onTodoClick.bind(todo.id)}
+			/>
+		'));
+
+		return jsx('
+			<ul>
+				$todos
+			</ul>
+		');
+	}
+}
+```
+
+You can then call the HOC like this:
+
+```haxe
 	override function render() 
 	{
-		return jsx('<MyComponent.Connected />');
+		return jsx('<$VisibleTodoList />');
 	}
 ```
+
+A complete implementation is available in an [example app](https://github.com/kLabz/haxe-redux-todo).
 
 
 ### Macro approach
