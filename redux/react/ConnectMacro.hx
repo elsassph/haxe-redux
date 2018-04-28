@@ -1,9 +1,11 @@
 package redux.react;
 
 #if macro
+import haxe.EnumTools.EnumValueTools;
 import haxe.macro.Context;
 import haxe.macro.Expr;
-import haxe.macro.Type.ClassType;
+import haxe.macro.Type;
+import haxe.macro.ComplexTypeTools;
 
 /**
 	Modify classes implementing IConnectedComponent to inject the connection logic
@@ -20,8 +22,12 @@ class ConnectMacro
 		addDispatch(fields);
 
 		// if class has 'mapState' method
-		if (hasMapState(fields))
+		var mapStateField = getMapState(fields);
+		if (mapStateField != null)
 		{
+			var inClass = Context.getLocalClass().get();
+			checkMapStateType(mapStateField, inClass);
+
 			// subscribe to state changes and call 'mapState' to update the view state
 			addUnsub(fields);
 			addCache(fields);
@@ -81,11 +87,78 @@ class ConnectMacro
 
 	/* MAP STATE */
 
-	static function hasMapState(fields:Array<Field>)
+	static function getMapState(fields:Array<Field>)
 	{
 		for (field in fields)
-			if (field.name == 'mapState') return true;
-		return false;
+			if (field.name == 'mapState') return field;
+		return null;
+	}
+
+	static function checkMapStateType(mapStateField:Field, inClass:ClassType)
+	{
+		var propsType:Type = TDynamic(null);
+		var stateType:Type = TDynamic(null);
+
+		switch (inClass.superClass)
+		{
+			case {params: params, t: _.toString() => 'react.ReactComponentOf'}:
+				propsType = params[0];
+				stateType = params[1];
+
+			default:
+		}
+
+		switch (mapStateField.kind)
+		{
+			case FFun(f):
+				if (f.args.length != 2)
+				{
+					Context.fatalError(
+						'mapState should accept two arguments: (app) state and (component) props',
+						mapStateField.pos
+					);
+				}
+
+				var propsArgType = ComplexTypeTools.toType(f.args[1].type);
+				if (!compareTypes(propsType, propsArgType))
+				{
+					Context.warning(
+						'mapState: props argument type should match TProps',
+						mapStateField.pos
+					);
+				}
+
+				var returnType = ComplexTypeTools.toType(f.ret);
+				if (compareTypes(stateType, returnType)) return;
+
+				switch (f.ret)
+				{
+					case TPath({name: 'Partial', pack: _, params: [TPType(partialType)]}):
+						if (compareTypes(stateType, ComplexTypeTools.toType(partialType)))
+							return;
+
+					default:
+				}
+
+				Context.warning(
+					'mapState: return type should match TState or Partial<TState>',
+					mapStateField.pos
+				);
+
+			default:
+				Context.fatalError('mapState should be a function', mapStateField.pos);
+		}
+	}
+
+	static function compareTypes(propsType:Type, propsArgType:Type)
+	{
+		if (EnumValueTools.getIndex(propsType) != EnumValueTools.getIndex(propsArgType))
+			return false;
+
+		if (EnumValueTools.getName(propsType) != EnumValueTools.getName(propsArgType))
+			return false;
+
+		return true;
 	}
 
 	static function exprUnmount()
