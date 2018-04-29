@@ -7,14 +7,16 @@ import haxe.macro.ExprTools;
 import haxe.macro.Type;
 import haxe.macro.TypeTools;
 import react.jsx.JsxStaticMacro;
+import react.wrap.ReactWrapperMacro;
 import react.ReactMacro;
 
 class ReactConnectorMacro {
-	static inline var CONNECT_META = ':connect';
+	public static inline var CONNECT_META = ':connect';
 	static inline var CONNECTED_META = ':connected_by_macro';
 	static inline var DEFAULT_CONNECTED_FIELD_NAME = '_connected';
 
-	static function addBuilder() react.ReactComponentMacro.appendBuilder(buildComponent);
+	// Use prepend to ensure @:connect is handled before @:wrap
+	static function addBuilder() react.ReactComponentMacro.prependBuilder(buildComponent);
 
 	static function buildComponent(inClass:ClassType, fields:Array<Field>):Array<Field>
 	{
@@ -32,25 +34,38 @@ class ReactConnectorMacro {
 			while (hasField(fields, fieldName)) fieldName = '_$fieldName';
 
 			var connectMeta = inClass.meta.extract(CONNECT_META).shift();
-			var connectParams = getConnectParams(connectMeta.params, fields);
+			var connectParams = getConnectParams(inClass, connectMeta.params, fields);
 
 			fields.push({
 				access: [APublic, AStatic],
 				name: fieldName,
-				kind: FVar(null, macro redux.react.ReactRedux.connect($a{connectParams})($i{inClass.name})),
+				kind: FVar(null, macro redux.react.ReactRedux.connect($a{connectParams})),
 				doc: null,
 				meta: null,
 				pos: connectMeta.pos
 			});
 
-			inClass.meta.add(JsxStaticMacro.META_NAME, [macro $v{fieldName}], connectMeta.pos);
-			inClass.meta.add(CONNECTED_META, [], inClass.pos);
+			// Prepare wrappers reordering
+			var wrappers = extractWrappers(inClass.meta);
+			inClass.meta.remove(ReactWrapperMacro.WRAP_META);
+			inClass.meta.remove(CONNECT_META);
+			for (w in wrappers.next) inClass.meta.add(w.name, w.params, w.pos);
+
+			// Add new metas
+			// Avoid typing here since it will fail (the class and its fields are not accessible yet)
+			// The typing will be handled in `fieldName` anyway
+			var wrapperExpr = macro untyped $i{inClass.name}.$fieldName;
+			inClass.meta.add(CONNECTED_META, [], connectMeta.pos);
+			inClass.meta.add(ReactWrapperMacro.WRAP_META, [wrapperExpr], connectMeta.pos);
+
+			// Add old meta
+			for (w in wrappers.prev) inClass.meta.add(w.name, w.params, w.pos);
 		}
 
 		return fields;
 	}
 
-	static function getConnectParams(params:Array<Expr>, fields:Array<Field>):Array<Expr>
+	static function getConnectParams(inClass:ClassType, params:Array<Expr>, fields:Array<Field>):Array<Expr>
 	{
 		if (params.length > 0) return params;
 
@@ -65,10 +80,10 @@ class ReactConnectorMacro {
 			{
 				switch (f.name)
 				{
-					case 'mapStateToProps': mapStateToProps = macro mapStateToProps;
-					case 'mapDispatchToProps': mapDispatchToProps = macro mapDispatchToProps;
-					case 'mergeProps': mergeProps = macro mergeProps;
-					case 'options': options = macro options;
+					case 'mapStateToProps': mapStateToProps = macro $i{inClass.name}.mapStateToProps;
+					case 'mapDispatchToProps': mapDispatchToProps = macro $i{inClass.name}.mapDispatchToProps;
+					case 'mergeProps': mergeProps = macro $i{inClass.name}.mergeProps;
+					case 'options': options = macro $i{inClass.name}.options;
 					default:
 				}
 			}
@@ -94,5 +109,33 @@ class ReactConnectorMacro {
 			if (f.name == fieldName) return true;
 
 		return false;
+	}
+
+	static function extractWrappers(meta:MetaAccess):{next:Array<MetadataEntry>, prev:Array<MetadataEntry>}
+	{
+		var prevWrappers = [];
+		var nextWrappers = [];
+		var foundConnect = false;
+
+		for (m in meta.get())
+		{
+			if (m.name == CONNECT_META)
+			{
+				foundConnect = true;
+			}
+			else if (m.name == ReactWrapperMacro.WRAP_META)
+			{
+				if (foundConnect) nextWrappers.push(m);
+				else prevWrappers.push(m);
+			}
+		}
+
+		nextWrappers.reverse();
+		prevWrappers.reverse();
+
+		return {
+			next: nextWrappers,
+			prev: prevWrappers
+		};
 	}
 }
