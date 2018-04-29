@@ -1,2 +1,1 @@
-# Add support for @:connect on react components
---macro redux.react.ReactConnectorMacro.addBuilder()
+--macro redux.macro.ReduxMacro.initMacro()

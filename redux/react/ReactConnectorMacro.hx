@@ -16,7 +16,7 @@ class ReactConnectorMacro {
 	static inline var DEFAULT_CONNECTED_FIELD_NAME = '_connected';
 
 	// Use prepend to ensure @:connect is handled before @:wrap
-	static function addBuilder() react.ReactComponentMacro.prependBuilder(buildComponent);
+	static public function addBuilder() react.ReactComponentMacro.prependBuilder(buildComponent);
 
 	static function buildComponent(inClass:ClassType, fields:Array<Field>):Array<Field>
 	{
