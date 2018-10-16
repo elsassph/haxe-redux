@@ -7,7 +7,11 @@ import redux.StoreMethods;
 
 typedef ProvideProps = {
 	store: StoreMethods<Dynamic>,
+	#if react_next
+	children: ReactSingleFragment
+	#else
 	children: ReactElement
+	#end
 }
 
 class Provider extends ReactComponentOfProps<ProvideProps>
