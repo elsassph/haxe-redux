@@ -3,7 +3,12 @@ package redux.react;
 import haxe.Constraints.Function;
 import redux.Redux;
 import react.Partial;
+
+#if react_next
+import react.ReactNode;
+#else
 import react.React.CreateElementType;
+#end
 
 #if reactredux_global
 @:native('ReactRedux')
@@ -18,13 +23,21 @@ extern class ReactRedux
 		?mapDispatchToProps: Dynamic,
 		?mergeProps: TStateProps -> TDispatchProps -> TOwnProps -> TProps,
 		?options: Partial<ConnectOptions>
+	#if react_next
+	): ReactNodeOf<TProps> -> ReactNodeOf<TOwnProps>;
+	#else
 	): CreateElementType -> CreateElementType;
+	#end
 
 	// https://github.com/reactjs/react-redux/blob/master/docs/api.md#connectadvancedselectorfactory-connectoptions
 	public static function connectAdvanced<TFactoryOptions, TState, TOwnProps, TProps, TOptions:ConnectAdvancedOptions>(
 		selectorFactory: Dispatch -> TFactoryOptions -> (TState -> TOwnProps -> TProps),
 		?connectOptions: TOptions
-	):CreateElementType -> CreateElementType;
+	#if react_next
+	): ReactNodeOf<TProps> -> ReactNodeOf<TOwnProps>;
+	#else
+	): CreateElementType -> CreateElementType;
+	#end
 }
 
 typedef ConnectAdvancedOptions = {
