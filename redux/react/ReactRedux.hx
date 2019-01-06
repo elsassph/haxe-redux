@@ -5,7 +5,7 @@ import redux.Redux;
 import react.Partial;
 
 #if react_next
-import react.ReactNode;
+import react.ReactType;
 #else
 import react.React.CreateElementType;
 #end
@@ -24,7 +24,7 @@ extern class ReactRedux
 		?mergeProps: TStateProps -> TDispatchProps -> TOwnProps -> TProps,
 		?options: Partial<ConnectOptions>
 	#if react_next
-	): ReactNodeOf<TProps> -> ReactNodeOf<TOwnProps>;
+	): ReactTypeOf<TProps> -> ReactTypeOf<TOwnProps>;
 	#else
 	): CreateElementType -> CreateElementType;
 	#end
@@ -34,7 +34,7 @@ extern class ReactRedux
 		selectorFactory: Dispatch -> TFactoryOptions -> (TState -> TOwnProps -> TProps),
 		?connectOptions: TOptions
 	#if react_next
-	): ReactNodeOf<TProps> -> ReactNodeOf<TOwnProps>;
+	): ReactTypeOf<TProps> -> ReactTypeOf<TOwnProps>;
 	#else
 	): CreateElementType -> CreateElementType;
 	#end
