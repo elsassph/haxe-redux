@@ -4,7 +4,7 @@ A smart set of externs, abstracts and macros for a smart Haxe and redux integrat
 
 By default the externs use `@:jsRequire` (eg. JS `require`).
 
-To use a global Redux JS (eg. https://cdnjs.com/libraries/redux) add: `-D redux_global`. 
+To use a global Redux JS (eg. https://cdnjs.com/libraries/redux) add: `-D redux_global`.
 
 
 ## Basic API
@@ -14,8 +14,8 @@ The base externs work exactly as described in the redux documentation.
 
 ## Advanced API
 
-Using the `StoreBuilder` helper it is possible to leverage Haxe Enums to dispatch 
-and match actions. 
+Using the `StoreBuilder` helper it is possible to leverage Haxe Enums to dispatch
+and match actions.
 
 ### Store setup
 
@@ -24,19 +24,19 @@ and match actions.
 
 	// store model, implementing reducer and middleware logic
 	var todoList = new TodoList();
-	
-	// create root reducer normally, excepted you must use 
+
+	// create root reducer normally, excepted you must use
 	// 'StoreBuilder.mapReducer' to wrap the Enum-based reducer
 	var rootReducer = Redux.combineReducers({
 		todoList: mapReducer(TodoAction, todoList)
 	});
-	
-	// create middleware normally, excepted you must use 
+
+	// create middleware normally, excepted you must use
 	// 'StoreBuilder.mapMiddleware' to wrap the Enum-based middleware
 	var middleware = Redux.applyMiddleware(
 		mapMiddleware(TodoAction, todoList)
 	);
-	
+
 	// user 'StoreBuilder.createStore' helper to automatically wire
 	// the Redux devtools browser extension:
 	// https://github.com/zalmoxisus/redux-devtools-extension
@@ -45,8 +45,8 @@ and match actions.
 
 ### Dispatch
 
-The regular Redux `store.dispatch` is declared to accept the type `Action` which is 
-in fact a Haxe `abstract` capable of auto-converting Haxe Enums into a regular 
+The regular Redux `store.dispatch` is declared to accept the type `Action` which is
+in fact a Haxe `abstract` capable of auto-converting Haxe Enums into a regular
 `{ type, value }` Redux object.
 
 For code to be seamless, simple wrapper functions provides the right Haxe Enum value
@@ -65,7 +65,7 @@ store.dispatch(TodoAction.Load)
 // TodoList.hx
 
 // Match the Haxe Enum directly in your reducer!
-public function reduce(state:TodoListState, action:TodoAction):TodoListState 
+public function reduce(state:TodoListState, action:TodoAction):TodoListState
 {
 	return switch(action)
 	{
@@ -92,9 +92,7 @@ public function middleware(store:StoreMethods<ApplicationState>, action:TodoActi
 
 ## React Connect
 
-### High Order Component (HOC) approach (TODO)
-
-**Note: externs for this approach are NOT included.**
+### High Order Component (HOC) approach
 
 Normally for React, you're expected to use react-redux's `connect` function:
 http://redux.js.org/docs/basics/UsageWithReact.html
@@ -105,20 +103,20 @@ Using HOCs is a bit awkward in Haxe's class-oriented approach, one way to do it 
 the connected class reference in a static field:
 
 ```haxe
-class MyComponent extends ReactComponent 
+class MyComponent extends ReactComponent
 {
 	static public var Connected = ReactRedux.connect(mapStateToProps)(MyComponent);
-	
+
 	static function mapStateToProps(state:State)
 	{
 		...
-	} 
+	}
 	...
 }
 ```
 
 ```haxe
-	override function render() 
+	override function render()
 	{
 		return jsx('<MyComponent.Connected />');
 	}
@@ -127,22 +125,22 @@ class MyComponent extends ReactComponent
 
 ### Macro approach
 
-The approach proposed here uses macros to directly modify your class to insert the needed 
+The approach proposed here uses macros to directly modify your class to insert the needed
 lifecycle operations:
 - interface `IConnectedComponent` triggers the `ConnectMacro`,
 - `this.context.store` is wired automatically,
 - a `this.dispatch` function is created, forwarding to the connected store,
-- if a `mapState` (static or not) function is declared, it will be used: 
+- if a `mapState` (static or not) function is declared, it will be used:
 	- in the constructor to set the initial state (instead of props),
 	- when the state changes, to call `setState` with a new mapped state.
 
-Using this system you don't normally even need to wrap the views using a separate component, 
-but you should be able to manually reproduce this setup if desired. 
+Using this system you don't normally even need to wrap the views using a separate component,
+but you should be able to manually reproduce this setup if desired.
 
 Unlike the HOC, this approach applies the mapped redux state as **state** values (only
 when it changes).
 
-**Note: it is strongly discouraged to use inheritance with classes implementing 
+**Note: it is strongly discouraged to use inheritance with classes implementing
 `IConnectedComponent`. Use React components composition instead!**
 
 ```haxe
@@ -154,18 +152,18 @@ class TodoListView extends ReactComponentOfState<TodoListState> implements IConn
 	{
 		var todoList = state.todoList;
 		var entries = todoList.entries;
-		var message = 
-			todoList.loading 
+		var message =
+			todoList.loading
 			? 'Loading...'
 			: '${getRemaining(entries)} remaining of ${entries.length} items to complete';
-		
+
 		return {
 			message: message,
 			list: entries
 		}
 	}
 	...
-	override public function render() 
+	override public function render()
 	{
 		return jsx('
 			<div>
@@ -177,8 +175,8 @@ class TodoListView extends ReactComponentOfState<TodoListState> implements IConn
 			</div>
 		');
 	}
-	
-	function addNew() 
+
+	function addNew()
 	{
 		dispatch(TodoAction.Add('A new task'));
 	}
@@ -192,11 +190,11 @@ class TodoListView extends ReactComponentOfState<TodoListState> implements IConn
 Happens when you dispatch an Enum but the `dispatch` function is dynamically typed.
 
 The reason is the Enum needs to be transformed using an abstract type `redux.Action`.
-This abstract type will wrap the Enum value in a regular Redux action. 
+This abstract type will wrap the Enum value in a regular Redux action.
 
 **Solution:**
 
-Make sure `dispatch` is a function declared as `redux.Action->Dynamic` 
+Make sure `dispatch` is a function declared as `redux.Action->Dynamic`
 or simply `redux.Dispatch`.
 
 For example if you pass a reference to `dispatch` down to sub-components, you'll need
@@ -222,6 +220,6 @@ class MyComp extends ReactComponentOfProps<MyCompProps> {
 
 ## Changes
 
-### 0.5.0 
+### 0.5.0
 
 - Compatibility with haxe-react 1.2.0: changed to use `react.ReactPropTypes` instead of `react.React.PropTypes`
