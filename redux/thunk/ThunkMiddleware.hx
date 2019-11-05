@@ -11,13 +11,13 @@ class ThunkMiddleware<TState, TParams> implements IMiddleware<Thunk<TState, TPar
 		this.params = params;
 	}
 
-	public function middleware(action:Thunk<TState, TParams>, next:Void->Dynamic):Dynamic {
+	public function middleware(action:Thunk<TState, TParams>, next:Void->Dynamic):Any {
 		return switch (action) {
 			case Action(cb):
-				return cb(store.dispatch, store.getState);
+				cb(store.dispatch, store.getState);
 
 			case WithParams(cb):
-				return cb(store.dispatch, store.getState, this.params);
-		}
+				cb(store.dispatch, store.getState, this.params);
+		};
 	}
 }
