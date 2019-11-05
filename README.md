@@ -220,6 +220,17 @@ class MyComp extends ReactComponentOfProps<MyCompProps> {
 
 ## Changes
 
+### 0.5.2
+
+- Fix Haxe 4 warning
+- Added `@:connect` meta
+- Improved `Thunk` action typing
+
+### 0.5.1
+
+- Added `react-redux` externs (`connect(...)`)
+- Added Thunk-like middleware (`ThunkMiddleware`, `Thunk` enum actions)
+
 ### 0.5.0
 
 - Compatibility with haxe-react 1.2.0: changed to use `react.ReactPropTypes` instead of `react.React.PropTypes`

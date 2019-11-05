@@ -5,7 +5,7 @@
 	"description": "Redux externs and support classses for a smarter API",
 	"contributors": ["elsassph"],
 	"releasenote": "See https://github.com/elsassph/haxe-redux",
-	"version": "0.5.1",
+	"version": "0.5.2",
 	"url": "https://github.com/elsassph/haxe-redux",
 	"dependencies": {}
 }
