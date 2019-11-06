@@ -6,11 +6,12 @@ import haxe.macro.Expr;
 import haxe.macro.Type;
 
 import react.jsx.JsxStaticMacro;
-import react.macro.ReactWrapperMacro;
 
 #if ((react > "2.0") || react_next)
+import react.macro.ReactWrapperMacro;
 import react.macro.ReactComponentMacro;
 #else
+import react.wrap.ReactWrapperMacro;
 import react.ReactComponentMacro;
 #end
 

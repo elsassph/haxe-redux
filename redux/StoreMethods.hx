@@ -1,6 +1,10 @@
 package redux;
 
+#if (haxe_ver >= 4)
+import js.lib.Promise;
+#else
 import js.Promise;
+#end
 import redux.Redux;
 
 /**
