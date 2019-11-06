@@ -48,6 +48,18 @@ class ConnectMacro
 			kind: FVar(null, contextTypes),
 			pos: Context.currentPos()
 		});
+
+		if (!hasField(Context.getLocalClass().get(), 'context')) {
+			var contextType = macro :{
+				store: redux.Store<Dynamic>
+			};
+			fields.push({
+				name: 'context',
+				access: [APrivate],
+				kind: FVar(contextType, null),
+				pos: Context.currentPos()
+			});
+		}
 	}
 
 	static function addDispatch(fields:Array<Field>)

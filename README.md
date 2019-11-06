@@ -222,6 +222,7 @@ class MyComp extends ReactComponentOfProps<MyCompProps> {
 
 ### 0.5.2
 
+- Compatibility with Haxelib `react` 1.8.0
 - Fix Haxe 4 warning
 - Added `@:connect` meta
 - Improved `Thunk` action typing
